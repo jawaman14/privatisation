@@ -90,8 +90,13 @@ func buy_state(good: String, qty: int) -> bool:
 	return true
 
 
+## Units that can be sold now: what was bought this month is still on the road.
+func sellable(good: String) -> int:
+	return maxi(0, stock(good) - int(_bought.get(good, 0)))
+
+
 func sell_market(good: String, qty: int) -> bool:
-	if qty <= 0 or qty > stock(good):
+	if qty <= 0 or qty > sellable(good):
 		return false
 	_stock[good] = stock(good) - qty
 	ledger.earn(market_price(good) * qty)

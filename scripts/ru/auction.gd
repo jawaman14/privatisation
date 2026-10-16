@@ -96,7 +96,7 @@ func bribe(id: String, _official: String, rub: int) -> Dictionary:
 		for r in rivals:
 			if r.out or (lot["disq"] as Array).has(r.id):
 				continue
-			var v: int = r.bid(e, sess)
+			var v: int = r.bid(e, sess, reserve_value(lot))
 			if v > top:
 				top = v
 				strongest = r
@@ -123,7 +123,7 @@ func resolve(id: String) -> Dictionary:
 	for r in rivals:
 		if r.out or (lot["disq"] as Array).has(r.id):
 			continue
-		var v: int = r.bid(e, sess)
+		var v: int = r.bid(e, sess, reserve_value(lot))
 		if v >= floor_value and v > 0:
 			bids.append([r.id, v])
 	var bp: int = mini(int(lot["bp"]), e.state_bp())

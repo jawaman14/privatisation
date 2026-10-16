@@ -10,6 +10,7 @@ const STANDING_GAIN := 4.0  ## per roofed firm per month
 const OWNER_ID := "brotherhood"
 const RESIST_CHANCE := 0.8
 const TRIBUTE_RATE := 0.002  ## of the firm's real value, per month, before standing scales it
+const VISIT_CHANCE := 0.12  ## per month, for an owned firm with no roof: the local brigade calls
 
 var sess: RuSession
 var ledger: Ledger
@@ -62,6 +63,9 @@ func demand_bp(enterprise_id: String) -> int:
 
 
 func monthly() -> void:
+	for e in registry.owned_by(Ru.PLAYER):
+		if not is_protected(e.id) and sess.rng(4).random() < VISIT_CHANCE:
+			_retaliate(e.id)
 	var ids: Array[String] = _roofed.duplicate()
 	ids.sort()
 	for id in ids:

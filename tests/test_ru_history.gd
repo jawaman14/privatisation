@@ -97,3 +97,12 @@ func test_save_and_load_reproduces_the_game() -> void:
 	check_eq(h.ledger.rub, g.ledger.rub, "six months on they still agree on cash")
 	check_eq(h.to_dict()["registry"], g.to_dict()["registry"], "and on who owns what")
 	h.dispose()  # (g is disposed by after_each)
+
+
+func test_owning_firms_draws_the_tax_police() -> void:
+	var g := _new()
+	g.registry.by_id("volzhsky_dairy").sell_shares("state", Ru.PLAYER, 10000)
+	check_near(g.heat.tax, 0.0, 0.0001, "no heat before")
+	for i in 3:
+		g.end_month()
+	check(g.heat.tax > 0.0, "a visible owner is a taxable one")

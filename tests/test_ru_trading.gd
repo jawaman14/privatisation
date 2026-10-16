@@ -65,6 +65,10 @@ func test_round_trip_makes_money_in_1992() -> void:
 	var cash: int = m.l.rub
 	check(m.t.buy_state(GOOD, 20), "bought")
 	check_eq(m.t.stock(GOOD), 20, "in the warehouse")
+	check(not m.t.sell_market(GOOD, 20), "but the lorry has not arrived: nothing to sell this month")
+	_month(m)
+	check_eq(m.t.sellable(GOOD), 20, "next month it is on the street")
+	cash = m.l.rub
 	check(m.t.sell_market(GOOD, 20), "sold")
 	check_eq(m.t.stock(GOOD), 0, "empty")
 	check(m.l.rub > cash, "and richer for it")

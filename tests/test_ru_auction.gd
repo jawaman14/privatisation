@@ -11,7 +11,7 @@ class StubRival extends RefCounted:
 		id = id_
 		amount = amount_
 
-	func bid(_e, _sess) -> int:
+	func bid(_e, _sess, _reserve := 0) -> int:
 		return amount
 
 

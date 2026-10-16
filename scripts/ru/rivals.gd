@@ -7,6 +7,8 @@ extends RefCounted
 
 ## temperament -> [low, high] share of (book value x price level) offered
 const SHARE := {"greedy": [0.20, 0.35], "violent": [0.10, 0.20], "cautious": [0.05, 0.12]}
+## temperament -> [low, high] multiple of the auction's reserve offered
+const MULTIPLE := {"greedy": [1.3, 2.0], "violent": [1.1, 1.5], "cautious": [1.0, 1.2]}
 const TARGET_MONTHS := 3
 
 var sess: RuSession
@@ -35,9 +37,15 @@ func pending_on(enterprise_id: String) -> bool:
 	return not out and target != "" and target == enterprise_id
 
 
-func bid(e: Enterprise, session: RuSession) -> int:
+## With a reserve (what the auction asks at least), the rival offers a multiple of it; without one it offers a
+## share of the firm's book value. Never more than its cash.
+func bid(e: Enterprise, session: RuSession, reserve_value: int = 0) -> int:
 	if out:
 		return 0
+	if reserve_value > 0:
+		var mult: Array = MULTIPLE.get(temperament, MULTIPLE["cautious"])
+		var offer: int = int(float(reserve_value) * sess.rng(_stream).uniform(float(mult[0]), float(mult[1])))
+		return mini(cash_rub, offer)
 	var span: Array = SHARE.get(temperament, SHARE["cautious"])
 	var share: float = sess.rng(_stream).uniform(float(span[0]), float(span[1]))
 	var level: float = 1.0 if session.ledger == null else session.ledger.price_level()

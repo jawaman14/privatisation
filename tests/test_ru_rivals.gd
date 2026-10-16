@@ -35,6 +35,17 @@ func test_greedy_outbids_cautious_on_the_same_lot() -> void:
 	check(greedy > cautious, "greedy bids more over twenty lots")
 
 
+func test_bids_against_a_reserve_are_a_multiple_of_it() -> void:
+	var m := _make()
+	var e: Enterprise = m.r.by_id(FIRM)
+	var reserve := 10_000_000
+	for i in 30:
+		var g: int = _rival(m, "g%d" % i, "greedy", 1_000_000_000).bid(e, m.s, reserve)
+		var c: int = _rival(m, "c%d" % i, "cautious", 1_000_000_000).bid(e, m.s, reserve)
+		check(g >= int(1.3 * reserve) and g <= 2 * reserve, "greedy offers 1.3-2x the reserve (%d)" % g)
+		check(c >= reserve and c <= int(1.2 * reserve), "cautious barely clears it (%d)" % c)
+
+
 func test_a_rival_never_bids_more_than_it_has() -> void:
 	var m := _make()
 	var poor := _rival(m, "poor", "greedy", 50_000)

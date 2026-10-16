@@ -100,3 +100,21 @@ func test_missing_the_tribute_is_a_refusal() -> void:
 	var workers: int = m.r.by_id(FIRM).workers
 	m.b.monthly()
 	check(m.r.by_id(FIRM).workers < workers, "no money, no peace")
+
+
+func test_unprotected_firms_get_visits_and_roofed_ones_do_not() -> void:
+	var bare := _make(50_000_000_000)
+	var visits := []
+	bare.s.bus.subscribe("brotherhood_retaliation", func(ev): visits.append(ev.kind))
+	for i in 60:
+		bare.b.monthly()
+	check(visits.size() > 0, "a firm with no roof gets a visit from the local brigade sooner or later")
+	var roofed := _make(50_000_000_000)
+	var calm := []
+	roofed.s.bus.subscribe("brotherhood_retaliation", func(ev): calm.append(ev.kind))
+	roofed.b.buy_roof(FIRM)
+	for i in 8:
+		roofed.s.advance_month()
+		roofed.l.earn(1_000_000_000)
+		roofed.b.monthly()
+	check_eq(calm.size(), 0, "tribute paid, peace kept")

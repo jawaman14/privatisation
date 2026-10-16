@@ -7,7 +7,7 @@ class BusyRival extends RefCounted:
 	var out: bool = false
 	var target: String = ""
 
-	func bid(_e, _s) -> int:
+	func bid(_e, _s, _reserve := 0) -> int:
 		return 0
 
 	func pending_on(enterprise_id: String) -> bool:

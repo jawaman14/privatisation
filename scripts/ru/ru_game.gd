@@ -4,6 +4,7 @@ extends RefCounted
 ## the balance harness all drive a RuGame; nothing in here draws or reads the clock.
 
 const START_CASH_RUB := 300_000  ## December 1991 roubles
+const OWNER_TAX_HEAT := 0.5  ## per firm owned, per month
 const RIVAL_CASH := {"dyachenko": 20_000_000, "zhuravlev": 8_000_000}
 
 var sess: RuSession
@@ -71,6 +72,8 @@ func end_month() -> void:
 	vouchers.apply_month()
 	trading.apply_month()
 	heat.apply_month()
+	for e in registry.owned_by(Ru.PLAYER):
+		heat.add("tax", OWNER_TAX_HEAT)  # a visible owner is a taxable one
 	brotherhood.monthly()
 	for r in rivals:
 		r.monthly(sess)

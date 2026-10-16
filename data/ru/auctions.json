@@ -1,6 +1,6 @@
 {
 	"_note": "When each stake goes under the hammer. on: YYYY-MM; bp: basis points offered. The reserve is book value x bp x reserve_factor in voucher face values.",
-	"reserve_factor": 1.0,
+	"reserve_factor": 2.4,
 	"lots": [
 		{"on": "1992-11", "id": "volzhsky_dairy", "bp": 2500},
 		{"on": "1992-11", "id": "kuban_sugar", "bp": 2500},
