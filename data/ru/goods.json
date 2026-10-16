@@ -1,0 +1,12 @@
+{
+	"_note": "Base prices are roubles per unit at December 1991. The street price is the state price times the gap, which closes as the economy liberalises (anchors: month_index, gap). Quota is units a month you can buy at the state price.",
+	"start_contacts": ["vodka_cases"],
+	"gap_anchors": [[0, 8.0], [12, 4.0], [24, 2.0], [36, 1.3]],
+	"goods": {
+		"vodka_cases": {"name": "Vodka (case of 20)", "base_price": 120, "quota": 100},
+		"grain_tonnes": {"name": "Grain (tonne)", "base_price": 220, "quota": 80},
+		"timber_cubic": {"name": "Timber (cubic metre)", "base_price": 90, "quota": 120},
+		"metal_ingots": {"name": "Metal ingots (tonne)", "base_price": 800, "quota": 40},
+		"fuel_oil_tonnes": {"name": "Fuel oil (tonne)", "base_price": 150, "quota": 60}
+	}
+}

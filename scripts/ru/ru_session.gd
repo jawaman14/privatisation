@@ -17,6 +17,11 @@ func _init(opts := {}) -> void:
 	bus = EventBus.new()
 
 
+## Break the reference cycle with `ledger` (and let the session be freed). Call when a session is finished with.
+func dispose() -> void:
+	ledger = null
+
+
 static func available() -> bool:
 	return Ru.ENABLED
 
