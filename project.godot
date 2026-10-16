@@ -1,0 +1,38 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Privatisation"
+config/description="Bush flying, weight and balance, and the long arm of the law."
+config/version="0.9.0-beta.1"
+config/features=PackedStringArray("4.7")
+run/main_scene="res://scenes/main.tscn"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+textures/vram_compression/import_etc2_astc=true
+
+[shader_globals]
+
+rain_wet={
+"type": "float",
+"value": 0.0
+}
+
+[audio]
+
+general/text_to_speech=true
+driver/enable_input=true

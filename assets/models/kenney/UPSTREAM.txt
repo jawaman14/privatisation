@@ -1,0 +1,16 @@
+Kenney 3D kits, CC0, from https://github.com/shorepine/kenney @ 3694c68 (3d/<kit>/, the .glb files and each kit's Textures/colormap.png, unmodified).
+
+  repo folder          here                 models
+  car                  cars/                50      (8 were in use: police, sedan, sedan-sports, suv, suv-luxury, taxi, truck-flat, van)
+  blocky-characters    characters/          18
+  nature               nature/              329     (the 6 palms were in use)
+  watercraft           boats/               46      (boat-speed-a, boat-tug-a were in use)
+  weapon               weapons/             37      (machinegun, pistol, rocketlauncher, sniper, uzi were in use)
+  city-commercial      city_commercial/     41
+  city-industrial      city_industrial/     25
+  city-suburban        city_suburban/       40
+  furniture            furniture/           140
+  pirate               pirate/              72
+
+Besides the kits in use, the Pirate Kit is kept for the harbour's docks (the other unused kits - city-roads, survival, factory, retro-urban and modular-buildings - were removed in October 2026; they are CC0 and can be fetched again from the repository above); scripts/render/model_lib.gd
+loads by path, so nothing here changes the game until a module asks for it. The .import files are not committed (.gitignore).

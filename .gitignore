@@ -1,0 +1,11 @@
+.godot/
+*.import
+export/
+.tools/
+.build/
+# raw seasons (11 MB): regenerate with cli.gd -- strategic
+sim-results/strategic.json
+__pycache__/
+
+# a stale partial copy of the project sometimes appears here: never track it
+skyrunner-godot/

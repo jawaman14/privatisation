@@ -1,0 +1,267 @@
+extends SceneTree
+## World screenshot:
+##   godot --script res://tools/shots/pilot_shot.gd -- <low|medium|high> <hour> <out.png> <chase|cockpit|tower> [view] [map_seed] [sky] [moon]
+## view: ground (default: parked at HAR) | air (climbing out near Eagle's Nest) |
+##       org | law | rival (looking at that HQ) | overview (high above the island)
+##       city (the port city from over the harbour) | estuary | farm (map-specific: the city coast)
+##       phone (on foot, the phone out on its home screen) |
+##       car (at the wheel, the dashboard and the radio) |
+##       foot (on foot beside the parked aircraft, looking at the hangars) |
+##       villa (on foot inside the org's villa, at the boss's desk) |
+##       gun (on foot by the hangars with a rifle from the armoury) |
+##       island (Isla Soberana from its approach, over the horizon) | island_strip (its runway) |
+##       debug (the F6 performance overlay, detailed) | talk (a sit-down with the Family) |
+##       talk_island (the General's aide on the radio) | court (the bail hearing, the lawyer) |
+##       crew (Manny Ortega's hiring hall) | crew_safe (the same in the colour-safe palette) |
+##       controls (the F8 controls panel) | vhs (climbing out, through the F9 VHS filter) |
+##       buyers (Benny Ruiz and who's buying) |
+##       pack (on foot with a rifle, the I pack panel open) |
+##       street (at eye level in town: KayKit lamps and props, a burning wreck, a blast; wet
+##       if the weather argument is "storm")
+var app: PilotApp
+var n := 0
+var q := "medium"
+var hour := 14.0
+var out := "shot.png"
+var cam := "chase"
+var view := "ground"
+var fixed_cam = null  ## [position, look_at] for the HQ / overview views
+var street_fire := Vector2.ZERO
+
+
+func _init():
+	Terrain.natural = OS.get_environment("SR_CLASSIC") == ""  # the game's terrain; SR_CLASSIC=1 for the classic generator
+	var a := OS.get_cmdline_user_args()
+	if a.size() > 0: q = a[0]
+	if a.size() > 1: hour = float(a[1])
+	if a.size() > 2: out = a[2]
+	if a.size() > 3: cam = a[3]
+	if a.size() > 4: view = a[4]
+	var opts := {"seed": 1, "location": "HAR"}
+	if view in ["gun", "pack"]:
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "ground_war": true})
+	elif view in ["logistics", "trucks"]:
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "payroll": true, "family": true, "trade": true, "logistics": true, "ground_war": true})
+	elif view == "tutorial":
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "trade": true, "payroll": true})
+	elif view == "story":
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "career": true})
+	elif view == "buyers":
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "payroll": true, "family": true, "agency": true, "trade": true, "ground_war": true})
+	elif view in ["crew", "crew_safe"]:
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "payroll": true, "island": true})
+	elif view == "court":
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "court": true})
+	elif view == "street":
+		opts["map_seed"] = MapCity.SEED
+	elif view == "psych":
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "trade": true, "psychedelics": true, "logistics": true, "family": true, "payroll": true})
+	elif view in ["talk", "talk_island"]:
+		opts.merge({"map_seed": MapCity.SEED, "features": Session.SANDBOX_FEATURES, "family": true, "island": true})
+	if a.size() > 5: opts["map_seed"] = int(a[5])
+	if a.size() > 6:
+		opts["weather"] = {"sky": a[6], "moon": float(a[7]) if a.size() > 7 else 0.5}
+		if a.size() > 8:
+			opts["weather"]["fog"] = float(a[8])
+			opts["weather"]["wind_kt"] = 4
+	var s := Session.new(opts)
+	if view == "story":
+		Story.new(2).attach(s)  # 1981: the briefing card
+	if view == "tutorial":
+		Tutorial.new().attach(s)
+		s.tutorial.done["welcome"] = true
+		s.tutorial._show("connection")
+	app = PilotApp.new()
+	root.add_child(app)
+	app.setup(s, q)
+	app.scene.set_hour(hour)
+	app.cam_mode = cam
+	if view == "crew_safe":
+		UIStyle.set_palette("safe")
+	if view in ["air", "vhs"]:
+		var af := World.airfield("EGL")
+		s.spawn_airborne(af.x - 2500, af.y - 1800, 40.0, 180.0, 95.0)
+	elif view in ["org", "law", "rival"]:
+		var h: Dictionary = s.world.map.hqs[view]
+		var hd := deg_to_rad(h.heading)
+		# stand 40 m out in front of the building, looking back at it
+		var px: float = h.x + sin(hd) * 38 + cos(hd) * 14
+		var py: float = h.y + cos(hd) * 38 - sin(hd) * 14
+		var gz := s.world.ground(h.x, h.y)
+		fixed_cam = [Vector3(px, maxf(gz, s.world.ground(px, py)) + 9.0, -py), Vector3(h.x, gz + 3.0, -h.y)]
+	elif view == "street":
+		# stand on the arterial where it passes closest to downtown
+		var at := Vector2.ZERO
+		var along := Vector2.RIGHT
+		var best := INF
+		for r in s.world.map.roads:
+			for i in r.size() - 1:
+				var p0 := Vector2(r[i][0], r[i][1])
+				var p1 := Vector2(r[i + 1][0], r[i + 1][1])
+				var q := Geometry2D.get_closest_point_to_segment(MapCity.CITY_C, p0, p1)
+				if q.distance_to(MapCity.CITY_C) < best:
+					best = q.distance_to(MapCity.CITY_C)
+					at = q - (p1 - p0).normalized() * 60.0
+					along = (p1 - p0).normalized()
+		var eye := at + along * 10.0 + Vector2(-along.y, along.x) * 2.5
+		var look := at + along * 90.0
+		street_fire = look + Vector2(-along.y, along.x) * 3.0
+		fixed_cam = [Vector3(eye.x, s.world.ground(eye.x, eye.y) + 2.2, -eye.y), Vector3(look.x, s.world.ground(look.x, look.y) + 3.0, -look.y)]
+	elif view == "city":
+		fixed_cam = [Vector3(MapCity.CITY_C.x + 1400, 330, -(MapCity.CITY_C.y - 2200)), Vector3(MapCity.CITY_C.x - 300, 10, -MapCity.CITY_C.y)]
+	elif view == "downtown":
+		fixed_cam = [Vector3(MapCity.CITY_C.x + 700, 140, -(MapCity.CITY_C.y - 900)), Vector3(MapCity.CITY_C.x - 200, 20, -(MapCity.CITY_C.y + 300))]
+	elif view == "estuary":
+		fixed_cam = [Vector3(-9000, 420, 9200), Vector3(-12000, 0, 7000)]
+	elif view == "farm":
+		var frm := World.airfield("FRM")
+		fixed_cam = [Vector3(frm.x + 1800, 520, -(frm.y - 2600)), Vector3(frm.x - 400, 120, -frm.y)]
+	elif view == "island":
+		fixed_cam = [Vector3(Island.C.x + 3800, 520, -(Island.C.y + 4600)), Vector3(Island.C.x - 400, 0, -Island.C.y)]
+	elif view == "island_strip":
+		var sob := World.airfield(Island.CODE)
+		fixed_cam = [Vector3(sob.x + 900, 60, -(sob.y + 350)), Vector3(sob.x - 200, 4, -sob.y)]
+	elif view == "overview":
+		var har := World.airfield("HAR")
+		fixed_cam = [Vector3(har.x - 3000, 2600, -(har.y - 4000)), Vector3(0, 200, 0)]
+
+
+func _areas(node: Node, action: String, out: Array) -> Array:
+	if node is Area3D and node.get_meta("action", "") == action:
+		out.append(node)
+	for c in node.get_children():
+		_areas(c, action, out)
+	return out
+
+
+func _process(_d) -> bool:  # (MainLoop: true would quit)
+	n += 1
+	if n == 2 and view in ["foot", "villa", "gun", "pack", "car", "carmap", "phone"]:
+		_on_foot()
+	if fixed_cam != null:
+		app.set_process(false)  # the app would move its camera back (processing re-enables on ready)
+		app.cam.global_position = fixed_cam[0]
+		app.cam.look_at(fixed_cam[1], Vector3.UP)
+		app.cam.fov = 60
+		app.hud.visible = false
+	if n == 3 and view in ["talk", "talk_island"]:
+		app.s.family.ai = false
+		app.s.money = 24000
+		if view == "talk":
+			app.s.family.offer("docks")
+			app.open_talk("family")
+		else:
+			app.open_talk("general", "landing")
+	if n in [6, 7, 8] and view == "talk" and app.talk != null:
+		app.talk.advance()  # on to the read and the answers
+	if n == 6 and view == "talk_island" and app.talk != null:
+		app.talk.advance()
+	if view == "street" and n == 3:
+		app.scene.set_weather(app.s.weather)  # the fixed camera stops the app, which would apply it
+		if app.s.weather.get("sky", "") == "storm":
+			app.scene.fx.set_wet(1.0)
+		var g := app.s.world.ground(street_fire.x, street_fire.y)
+		app.effects.burn("demo", Vector3(street_fire.x, g, -street_fire.y), 3.0)
+	if view == "street" and n == 34:
+		var g := app.s.world.ground(street_fire.x, street_fire.y)
+		app.effects.blast(Vector3(street_fire.x + 25.0, g + 1.5, -street_fire.y - 10.0), 4.0)
+	if n == 4 and view == "pack" and app.s.foot != null:
+		app.s.money = 5000
+		app.s.foot.pack_add("pistol")
+		app.s.foot.pack_add("ammo", 90)
+		app.s.foot.pack_add("medkit")
+		app.toggle_pack()
+	if n == 3 and view in ["logistics", "trucks"]:
+		var lg: Logistics = app.s.logistics
+		lg.add("barn", "marijuana", 820.0)
+		lg.add("quarry", "cocaine", 64.0)
+		lg.add("camp", "cocaine", 22.0)
+		lg.cash["barn"] = 6400.0
+		lg.cash["lockup"] = 11850.0
+		lg.cash["docks"] = 2300.0
+		app.s.family.respect = 60.0
+		lg.send("lockup", Logistics.HQ, "cash", 11850.0)
+		lg.send("barn", "family", "marijuana", 300.0)
+		lg.send("quarry", "camp", "cocaine", 30.0)
+		app.s.arsenals.org.add("rifle", 8)
+		lg.send_guns("family", {"rifle": 4})
+		app.s.time += 240.0
+		lg.aboard = 9000
+		if view == "logistics":
+			app.toggle_logistics()
+		else:
+			app.hud.minimap.toggle()  # M: the big map - our trucks by what they carry
+	if n == 3 and view == "buyers":
+		app.s.trade.connected = true
+		app.s.trade.stock.cocaine = 140.0
+		app.s.trade.stock.marijuana = 900.0
+		app.s.arsenals.org.add("rifle", 12)
+		app.s.payroll.ai["org"] = false
+		app.open_talk("buyers")
+	if n == 8 and view == "phone":
+		app._open("phone")
+	if n == 30 and view == "carmap":
+		app._map_toggle()
+		app._waypoint_picked(Vector2(app.car.game_xy().x + 3000.0, app.car.game_xy().y + 1500.0))
+	if n == 6 and view in ["car", "carmap"]:  # in the car, on the move, the radio on
+		app.walker.place(app.car.global_position.x + 3.0, -app.car.global_position.z, 0.0)
+		app._enter_car()
+		app.radio.power(true)
+	if n in range(8, 60) and view in ["car", "carmap"] and app.driving != null:
+		app.driving._drive(1.0, 0.25 if n > 40 else 0.0, false, 1.0 / 30.0)
+	if n == 3 and view == "psych":
+		app.open_talk("psych")
+	if n in [6, 7, 8] and view == "psych" and app.talk != null:
+		app.talk.advance()
+	if n in [6, 7] and view == "buyers" and app.talk != null:
+		app.talk.advance()
+	if n == 3 and view == "controls":
+		app.toggle_controls()
+	if n == 3 and view == "vhs":
+		app.screen_filter.set_mode("vhs")
+	if n == 3 and view in ["crew", "crew_safe"]:
+		app.s.money = 36000
+		app.s.payroll.ai["org"] = false
+		app.open_talk("crew")
+	if n in [6, 7] and view in ["crew", "crew_safe"] and app.talk != null:
+		app.talk.advance()
+	if n == 3 and view == "court":
+		app.s.money = 42000
+		app.s.court.prosecutor_ai = false
+		var jid := Jobs.new_id()
+		app.s.active_jobs.append(Jobs.Job.new(jid, "a load", "contraband", "HAR", "FRM", [Jobs.item("Unmarked crate", "cargo", 220.0, jid, {"hot": true})], 5000))
+		app.s._bust("arrested on landing at San Telmo Intl")
+		app.open_talk("lawyer")
+	if n in [6, 7] and view == "court" and app.talk != null:
+		app.talk.advance()
+	if n == 3 and view == "debug":
+		app.cycle_debug_menu()
+		app.cycle_debug_menu()  # the detailed overlay
+	if n == 40:
+		root.get_viewport().get_texture().get_image().save_png(out)
+		print("saved ", out)
+		quit()
+	return false
+
+
+## Get out and stand in front of the hangar (or the boss's desk). Runs once the tree is live.
+func _on_foot() -> void:
+	app._toggle_on_foot()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var w := app.walker
+	w.look_enabled = false
+	var target := "hq_org" if view == "villa" else "hangar"
+	if view in ["gun", "pack"] and app.gun != null:
+		app.s.arsenals.org.add("rifle", 1)  # the shot's rifle
+		app.gun.key("2")
+	var areas := _areas(app.scene, target, [])
+	if view != "villa":
+		areas = areas.filter(func(a): return a.get_meta("field", "") == "HAR" and str(a.get_meta("label")).begins_with("Hangar"))
+	if not areas.is_empty():
+		var p: Vector3 = areas[0].global_position
+		var back: Vector3 = areas[0].get_parent().global_transform.basis.z.normalized()
+		var dist := 3.2 if view == "villa" else 48.0
+		var spot: Vector3 = p - back * dist
+		w.place(spot.x, -spot.z, 0.0)
+		w.look_at(Vector3(p.x, w.global_position.y, p.z), Vector3.UP)
+		w.cam.rotation.x = deg_to_rad(-8 if view == "villa" else 4)

@@ -1,0 +1,373 @@
+class_name Agency
+extends RefCounted
+## "The Company": a covert intelligence agency running guns south to the
+## Contra rebels through the island's strips, and the task force's awkward
+## opponent. Fiction inspired by the documented history of the period: the
+## Boland Amendments (1982, 1984) cut off U.S. funding for the Contras, the
+## supply effort went private and covert, a supply plane was shot down over
+## Nicaragua in October 1986 and its surviving crewman talked, the Iran-Contra
+## affair broke in November 1986, and a Senate subcommittee (the Kerry
+## Committee, reporting in 1989) found that people involved in Contra supply
+## networks were also involved in drug trafficking, and that U.S. agencies had
+## at times known about it. Nobody here is a real person; the mechanics are
+## the game's.
+##
+## What it does:
+##   - "southern front" arms flights on the shady strips' boards: weapons crates
+##     flown to a strip where a contact flies them on; well paid, and they build
+##     the Agency's trust in you
+##   - protection: carrying its cargo, or for a while after a run, a bust is
+##     quashed - a call from Washington, "national security" - and the police's
+##     checkpoints are told to wave your trucks through. Every quash leaves a
+##     trail (exposure)
+##   - trust brings gifts: crates of rifles left at the strip for the
+##     organisation's soldiers; the Agency protects its assets (it burns an
+##     informant, cooling a stash)
+##   - the task force can dig (investigate_agency: subpoenas, a friendly
+##     congressman's staffer); exposure also grows with every flight and every
+##     quash, and with the history. At 100 it is exposed: the hearings. The
+##     protection is gone for good, the task force gets the budget and the
+##     names, and the organisation's pilots are in the papers
+##
+## And its double game (its own RNG stream, so none of the above shifts):
+##   - the limited hangout: past HANGOUT_AT exposure the Company may cut its
+##     losses and feed your name to the task force itself - protection over
+##   - a stung flight: the Agency let the DEA have this one, and the strip is a
+##     trap; its notes may say the contact changed at the last minute (a read,
+##     right about three times in four, like the Family's)
+##   - "the check's in the mail": part of a flight's pay withheld, likelier
+##     once the money has gone private
+##   - both sides: it waves Los Cuervos' planes through too
+##   - disinformation both ways: a warning that sends the task force after a
+##     ghost (the intel on your hottest stash drops), or, once it needs a
+##     scapegoat, an anonymous tip about one of yours
+##   - a favour: the Company's cash washed through the Family's casinos, with
+##     you as the go-between (a fee, and both of them like you better)
+##
+## And the pipeline - cocaine for guns, as the Kerry Committee described the
+## networks (its own stream too, `prng`; needs the street market):
+##   - every PIPE_S the Company's contacts buy cocaine upstream (the island's
+##     source tightens, its wholesale rises) and its protected planes land it
+##     on one market's street (a flood: the price there falls - bad for our
+##     cocaine)
+##   - the proceeds buy guns: off the street and out of the fences' hands, and
+##     buyers bid for what's left - guns get dear in town and the west (good for
+##     our gun running and the fence)
+##   - its war chest puts more southern-front flights on the boards, and some
+##     "return legs": protected cocaine flights north for us to fly
+##   - every cycle leaves a trail (exposure); the task force sees the pattern
+##     (cheap cocaine where the planes land). A hangout pauses it; the hearings
+##     end it
+##
+## Off for the Python replays (Agency.ENABLED = false); built for sessions that
+## ask (live play: agency: true).
+
+static var ENABLED := true
+
+const PROTECT_S := 1800.0  ## the window after a run when the Agency still covers you
+const QUASH_EXPOSURE := 20.0
+const FLIGHT_EXPOSURE := 4.0
+const INVESTIGATE_COST := 3000
+const DESTS := ["Ilopango", "the Honduran border strips", "an airstrip in Costa Rica"]
+const HANGOUT_AT := 70.0
+const STING_HINT := "The contact changed at the last minute."
+
+var sess
+var rng: PyRandom
+var trust := 20.0  ## 0..100: how much the Agency relies on the organisation
+var exposure := 0.0  ## 0..100: how close the task force is to proving it
+var protected_until := -1.0
+var quashed := 0
+var flights := 0
+var burned := false  ## exposed: the hearings happened
+var pay_mult := 1.0  ## the Boland squeeze: private money pays more
+var offer_chance := 0.35
+var _gift_t := 0.0
+var _t := 0.0
+var drng: PyRandom = null  ## the double game's stream (null: no double game)
+var stings := {}  ## job id -> true: flights the Company let the DEA have
+var hung_out := false  ## it cut us loose to save itself
+var withheld := 0
+var last_read := ""
+var _game_t := 0.0
+## the pipeline (cocaine north, guns south)
+const PIPE_S := 900.0
+const PIPE_EXPOSURE := 0.75
+var prng: PyRandom = null  ## its own stream (null: no pipeline)
+var war_chest := 0.0  ## what the cocaine brought in, waiting to buy guns
+var coke_lots := 0  ## lots flown north
+var gun_lots := 0  ## lots of guns bought
+var pipe_last := ""
+var _pipe_t := 0.0
+var _pipe_pause := -1.0
+var next_market := "town"  ## where the next load lands (what following the money finds)
+var extra_lots := 0  ## cocaine we sold the Company, flown north with its next load
+
+
+func _init(sess_, rng_: PyRandom, drng_: PyRandom = null) -> void:
+	sess = sess_
+	rng = rng_
+	drng = drng_
+
+
+func active() -> bool:
+	return not burned
+
+
+## A southern-front arms flight from `origin` (a shady or bush strip).
+func job_from(origin: Airfield, airfields: Array):
+	if burned:
+		return null
+	var dests := airfields.filter(func(a): return a.kind in ["shady", "bush"] and a.code != origin.code)
+	if dests.is_empty():
+		return null
+	var dest: Airfield = dests[rng.randint(0, dests.size() - 1)]
+	if prng != null and war_chest >= 20000.0 and prng.random() < 0.35 and (sess.trade == null or sess.trade.connected):
+		return _return_leg(origin, airfields)
+	var jid := Jobs.new_id()
+	var n := rng.randint(3, 6)
+	var items := []
+	for k in n:
+		items.append(Jobs.item("Crate marked 'humanitarian aid'", "cargo", rng.uniform(30, 45), jid, {"hot": true}))
+	var dist := PyMath.hypot(origin.x - dest.x, origin.y - dest.y) / 1000
+	var pay := int((2400 + n * 500 + dist * 150) * pay_mult)
+	var job := Jobs.Job.new(jid, "Southern front: %d crates -> %s" % [n, dest.name], "contraband", origin.code, dest.code, items, pay,
+		{"notes": "Friends in Washington. A contact flies them on to %s. Nobody will stop you - probably." % DESTS[rng.randint(0, DESTS.size() - 1)]})
+	job.weapons = {"rifle": n * 2}
+	job.agency = true
+	if drng != null:
+		var sting := drng.random() < 0.06 + exposure / 300.0
+		if sting:
+			stings[jid] = true
+		if drng.random() < (0.75 if sting else 0.12):
+			job.notes += " " + STING_HINT
+	return job
+
+
+## The pipeline's northbound leg: cocaine, protected, into the town's market.
+func _return_leg(origin: Airfield, airfields: Array):
+	var dests := airfields.filter(func(a): return a.kind in ["intl", "regional", "shady"] and a.code != origin.code and Economy.market_of(a.code) != "sea")
+	if dests.is_empty():
+		return null
+	var dest: Airfield = dests[prng.randint(0, dests.size() - 1)]
+	var jid := Jobs.new_id()
+	var n := prng.randint(2, 4)
+	var items := []
+	for k in n:
+		items.append(Jobs.item("Sealed case", "cargo", prng.uniform(20, 30), jid, {"hot": true}))
+	var pay := int((3500 + n * 900) * pay_mult)
+	var job := Jobs.Job.new(jid, "Return leg: %d cases -> %s" % [n, dest.name], "contraband", origin.code, dest.code, items, pay,
+		{"notes": "The Company's northbound cargo. Don't open the cases; the money buys rifles for the front."})
+	job.agency = true
+	war_chest = maxf(0.0, war_chest - 5000.0)
+	return job
+
+
+func carrying() -> bool:
+	return sess.active_jobs.any(func(j): return j.agency)
+
+
+func protecting() -> bool:
+	return active() and not hung_out and not _stung_aboard() and (carrying() or sess.time < protected_until)
+
+
+func _stung_aboard() -> bool:
+	return sess.active_jobs.any(func(j): return j.agency and stings.has(j.id))
+
+
+## The task force forced us down: if the Agency covers us, the case goes away.
+func quash(how: String) -> bool:
+	if not protecting():
+		return false
+	quashed += 1
+	exposure = minf(100.0, exposure + QUASH_EXPOSURE)
+	sess.police.reset(false)
+	sess.say("A phone call from Washington: they let you go. National security. (%s)" % how)
+	sess.law_say("The case is closed on orders from Washington - 'national security'. Someone is protecting that pilot.")
+	sess.bus.emit("quashed", sess.time, "", ["runner", "law"], {"how": how})
+	_check_exposed()
+	return true
+
+
+## Checkpoints are told to wave the organisation's trucks through (mostly).
+func waves_through(r: PyRandom) -> bool:
+	return protecting() and r.random() < 0.7
+
+
+## A flight landed. Returns true when it was a sting (the session busts us).
+func flight_done(job) -> bool:
+	if stings.has(job.id):
+		stings.erase(job.id)
+		protected_until = -1.0  # no call from Washington for this one
+		exposure = minf(100.0, exposure + FLIGHT_EXPOSURE)
+		last_read = "The Company gave that flight to the DEA"
+		sess.law_say("DEA sting at the strip: an arms flight walks into it. A tip from 'a friendly agency'")
+		return true
+	flights += 1
+	trust = minf(100.0, trust + 12.0)
+	protected_until = sess.time + PROTECT_S
+	exposure = minf(100.0, exposure + FLIGHT_EXPOSURE)
+	sess.say("The crates are on their way south. The Company remembers its friends (protected for %d min)." % int(PROTECT_S / 60))
+	# the pipeline's other cargo: a plane goes down, a crewman talks
+	if flights >= 3 and rng.random() < 0.08:
+		exposure = minf(100.0, exposure + 30.0)
+		sess.say("NEWS - A cargo plane carrying arms for the Contras was shot down; the surviving crewman is talking.")
+		sess.law_say("NEWS - A Contra supply plane went down; the survivor names an airline and a strip network.")
+	# the check's in the mail
+	if drng != null and drng.random() < 0.12 + (0.12 if pay_mult > 1.0 else 0.0):
+		var k := mini(maxi(0, sess.money), int(job.payout * 0.4))
+		sess.money -= k
+		withheld += k
+		last_read = "$%s of the last flight's pay is 'in the mail'" % Py.money(k)
+		sess.say("The Company: $%s of that pay is 'in the mail'. It won't come." % Py.money(k))
+	_check_exposed()
+	return false
+
+
+## The task force digs: subpoenas, bank records, a congressional staffer.
+func investigate() -> String:
+	if burned:
+		return "It's already all over the papers."
+	if sess.law_funds < INVESTIGATE_COST:
+		return "Need $%d in funds." % INVESTIGATE_COST
+	sess.law_funds -= INVESTIGATE_COST
+	var gain := 8.0 + 4.0 * quashed + rng.uniform(0.0, 8.0)
+	exposure = minf(100.0, exposure + gain)
+	sess.law_say("Investigators follow the money from the quashed cases: exposure %d%%" % int(exposure))
+	_check_exposed()
+	return ""
+
+
+func _check_exposed() -> void:
+	if burned or exposure < 100.0:
+		return
+	burned = true
+	protected_until = -1.0
+	trust = 0.0
+	sess.law_funds += 15000.0
+	var c = sess.police.case("runner")
+	c.suspicion = minf(100.0, c.suspicion + 25.0)
+	var text := "The hearings: the Agency's southern supply network is exposed - the arms flights, the protected pilots, the quashed cases."
+	sess.say("NEWS - " + text + " Your name is in the testimony.")
+	sess.law_say("NEWS - " + text + " Congress gives the task force the budget to finish it (+$15,000).")
+	sess.bus.emit("agency_exposed", sess.time, text, ["runner", "law"], {})
+
+
+func update(dt: float) -> void:
+	if burned:
+		return
+	_t += dt
+	if _t < 10.0:
+		return
+	var step := _t
+	_t = 0.0
+	if drng != null:
+		_double_game(step)
+	if prng != null:
+		_pipeline(step)
+	trust = maxf(0.0, trust - 0.5 * step / 60.0)
+	_gift_t += step
+	# trust brings favours: guns for the soldiers, a burned informant
+	if _gift_t >= 900.0:
+		_gift_t = 0.0
+		if trust >= 50.0 and sess.arsenals.has("org") and rng.random() < 0.5:
+			var n := rng.randint(2, 4)
+			sess.arsenals.org.add("rifle", n)
+			sess.say("A crate of rifles left at the strip, no note. Our friends from the Company.")
+		elif trust >= 35.0 and sess.stash_net != null and rng.random() < 0.4:
+			var hot = Py.max_by(sess.stash_net.live(), func(s): return StashNet.suspicion(s)) if not sess.stash_net.live().is_empty() else null
+			if hot != null and hot.intel > 0.0:
+				hot.intel = maxf(0.0, hot.intel - 25.0)
+				sess.say("The Company protects its assets: the informant watching %s has been 'reassigned'." % hot.name)
+				sess.law_say("Our informant on %s has gone quiet. Someone warned him off." % hot.name)
+
+
+## The Company's double game (its own stream): a hangout, both sides, disinformation, a favour.
+func _double_game(step: float) -> void:
+	if not hung_out and exposure >= HANGOUT_AT and drng.random() < 0.012 * step / 10.0:
+		hung_out = true
+		protected_until = -1.0
+		trust = 0.0
+		exposure = maxf(0.0, exposure - 25.0)  # it bought itself time
+		var c = sess.police.case("runner")
+		c.suspicion = minf(100.0, c.suspicion + 30.0)
+		last_read = "The Company cut us loose and gave the task force our name"
+		sess.say("A man from the Company won't return calls. Then the task force knows things only the Company knew. We've been hung out to dry.")
+		sess.law_say("An anonymous package from a 'government source': the smuggling organisation's pilots, strips and dates")
+		sess.bus.emit("agency_hangout", sess.time, "", ["runner", "law"], {})
+	_game_t += step
+	if _game_t < 600.0:
+		return
+	_game_t = 0.0
+	var r := drng.random()
+	var live: Array = sess.stash_net.live() if sess.stash_net != null else []
+	if r < 0.25 and sess.ground != null:
+		sess.ground.commanders.rival.cash += 4000.0
+		last_read = "Los Cuervos' planes get waved through too: the Company plays both sides"
+		sess.say("Word from the strips: Los Cuervos' planes are getting waved through too.")
+	elif r < 0.45 and trust >= 40.0 and not hung_out and not live.is_empty():
+		var st = Py.max_by(live, func(s): return StashNet.suspicion(s))
+		st.intel = maxf(0.0, st.intel - 20.0)
+		last_read = "The Company sent the task force after a ghost: %s is cooler" % st.name
+		sess.say("The Company fed the task force a false lead. %s can breathe." % st.name)
+		sess.law_say("A hot lead from a 'federal source' goes nowhere: a week wasted")
+	elif r < 0.6 and (exposure >= 50.0 or hung_out) and not live.is_empty():
+		var st: Dictionary = live[drng.randint(0, live.size() - 1)]
+		st.intel += 20.0
+		last_read = "Someone with a government accent tipped the task force about %s" % st.name
+		sess.law_say("An anonymous caller with a government accent names %s" % st.name)
+	elif r < 0.7 and trust >= 50.0 and not hung_out and sess.family != null and sess.family.active():
+		sess.money += 3000
+		trust = minf(100.0, trust + 5.0)
+		sess.family.respect = minf(100.0, sess.family.respect + 5.0)
+		last_read = "We brokered the Company's cash through the Family's casinos (+$3,000)"
+		sess.say("The Company needs its cash cleaned; the Morettis' casinos oblige, and we take a fee (+$3,000).")
+
+
+## Cocaine north, guns south: the Company moves the markets.
+func _pipeline(step: float) -> void:
+	var mk = sess.econ.market if sess.econ != null else null
+	if mk == null:
+		return
+	_pipe_t += step
+	if _pipe_t < PIPE_S or sess.time < _pipe_pause:
+		return
+	_pipe_t = 0.0
+	if hung_out and _pipe_pause < 0.0:
+		_pipe_pause = sess.time + 3600.0  # covering itself for an hour, then back to business
+		return
+	var lots := prng.randint(1, 3) + mini(extra_lots, 4)
+	extra_lots = 0
+	# 1. buy upstream: the island's connections sell to the Company first
+	mk.source_shock("cocaine", -0.02 * lots)
+	# 2. fly it north: a protected flood on one market's street
+	var m: String = next_market
+	next_market = ["town", "north", "sea"][prng.randint(0, 2)]
+	mk.flow("cocaine", m, 0.12 * lots, "the Company's planes landed cocaine")
+	coke_lots += lots
+	var street: float = sess.econ.mult("cocaine", m)
+	war_chest += 18000.0 * lots * street
+	# 3. the proceeds buy guns: off the street, and buyers bid for the rest
+	var buy := mini(lots + (1 if war_chest > 60000.0 else 0), 4)
+	if war_chest >= 15000.0:
+		war_chest -= 15000.0 * buy
+		gun_lots += buy
+		for gm in ["town", "west"]:
+			mk.flow("guns", gm, -0.06 * buy, "the Company is buying guns")
+		mk.source_shock("guns", -0.02 * buy)
+		mk.demand_shock("guns", "*", 1.0 + 0.05 * buy, 30)
+	exposure = minf(100.0, exposure + PIPE_EXPOSURE * lots)
+	offer_chance = minf(0.65, 0.35 + war_chest / 200000.0)
+	pipe_last = "%d lot(s) of cocaine flown into the %s, %d lot(s) of guns bought" % [lots, Market._name(m), buy]
+	if prng.random() < 0.35:
+		sess.econ.market._headline("pipeline", "Cheap cocaine in the %s, and guns hard to find: nobody seems to stop the planes" % Market._name(m))
+	if prng.random() < 0.3:
+		sess.law_say("A pattern: cocaine prices crash in the %s after unregistered cargo flights; gun dealers say a buyer takes everything" % Market._name(m))
+	_check_exposed()
+
+
+func view(side: String) -> Dictionary:
+	if side == "law":
+		return {"exposure": int(exposure), "quashed": quashed, "burned": burned, "pipeline_lots": coke_lots}
+	return {"trust": int(trust), "protected": maxi(0, int(protected_until - sess.time)) if protecting() else 0, "burned": burned,
+		"flights": flights, "hung_out": hung_out, "last": last_read, "pipeline": pipe_last, "war_chest": int(war_chest)}
