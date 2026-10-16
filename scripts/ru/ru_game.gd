@@ -51,6 +51,15 @@ func _build(sess_: RuSession, cash: int) -> void:
 	_reserve_factor = float(a.get("reserve_factor", 1.0))
 
 
+## Pay Major Belov: a file on the prosecutors' desk goes missing. False, and nothing happens, if you cannot pay.
+func pay_major(rub: int) -> bool:
+	if rub <= 0 or not ledger.spend(rub):
+		return false
+	heat.add("prosecutor", -15.0)
+	heat.add("rubop", -10.0)
+	return true
+
+
 ## Break the reference cycles so the game can be freed.
 func dispose() -> void:
 	chapters.game = null

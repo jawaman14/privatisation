@@ -16,6 +16,8 @@ extends Node
 ##   godot -- --map 42                       # a generated island (0 = the classic one)
 ##   godot -- --shot out.png --frames 90     # render N frames, save a screenshot, quit
 ##   godot --headless -- --smoke 600         # run N frames of a new game, print SMOKE OK, quit (CI)
+##   godot -- --game ru [--seed N]           # Privatisation: Russia 1991-93, the desk
+##   godot --headless -- --game ru --smoke 30  # the bot plays a whole game of Privatisation, prints SMOKE OK RU
 ##
 ## With no arguments the lobby opens, which sets the same options with menus.
 
@@ -25,7 +27,7 @@ var save_dir := "user://"  ## the tests point it elsewhere so they never touch a
 
 var args := {"mode": "solo", "police": false, "host": false, "port": 47800, "bind": "*", "new": false, "seed": 1,
 	"players": 0, "layer": 0, "graphics": "high", "watch": false, "shot": "", "frames": 90, "hour": -1.0,
-	"map": -1, "weather": "", "connect": "", "host_room": null, "role": "copilot", "name": "player", "password": "", "seat3d": false, "lobby": true, "unlocks": "story", "chapter": 0, "tutorial": false, "smoke": 0}
+	"map": -1, "weather": "", "connect": "", "host_room": null, "role": "copilot", "name": "player", "password": "", "seat3d": false, "lobby": true, "unlocks": "story", "chapter": 0, "tutorial": false, "smoke": 0, "game": "skyrunner"}
 
 
 func _ready() -> void:
@@ -173,6 +175,9 @@ func _leave(to: String) -> void:
 
 
 func start() -> void:
+	if args["game"] == "ru":
+		_start_ru()
+		return
 	if args["connect"] != "":
 		_join()
 		return
@@ -328,6 +333,31 @@ func _seat(link: NetClient, role: String) -> void:
 		var st := StationApp.new()
 		add_child(st)
 		st.setup(link, role)
+
+
+## Privatisation: the desk, or with --smoke the bot playing a whole game headless.
+func _start_ru() -> void:
+	var game: RuGame = RuGame.new_game(int(args["seed"]))
+	if args["smoke"] > 0:
+		RuBot.play(game)
+		print("SMOKE OK RU months=%d cash=%d score=%d" % [game.sess.month_index, game.ledger.rub, game.chapters.score()])
+		game.dispose()
+		get_tree().quit()
+		return
+	var desk := Desk.new()
+	desk.bind(game)  # before add_child, so the desk does not start a game of its own
+	add_child(desk)
+	if args["shot"] != "":  # --shot out.png --frames N: play the bot for a while, then save the desk
+		for i in int(args["frames"]) / 5:
+			RuBot.act(game)
+			desk.end_month_pressed()
+		for f in 3:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var path: String = args["shot"]
+		get_viewport().get_texture().get_image().save_png(path if path.is_absolute_path() else ProjectSettings.globalize_path("res://").path_join(path))
+		print("saved ", path)
+		get_tree().quit()
 
 
 ## Run a new game for a while and quit (the release smoke test in CI): the

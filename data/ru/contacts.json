@@ -1,0 +1,9 @@
+{
+	"_note": "The four people on the phone in the slice. All fictional. cost_factor is multiplied by the price level to get roubles.",
+	"contacts": {
+		"director": {"name": "Pyotr Gavrilovich, factory director", "opens": "He will talk about his factory, for the right envelope.", "declines": "He does not take your call: you are in the wrong office.", "cost_factor": 0},
+		"banker": {"name": "Inna Markovna, bank clerk", "opens": "She can find you vouchers from people who would rather have rent money.", "declines": "She has no vouchers to spare until they are issued.", "cost_factor": 0},
+		"brigade": {"name": "Sasha from the Tulskaya brigade", "opens": "He says a firm like yours should have a roof, and that he is a reasonable man.", "declines": "He yawns: you own nothing worth protecting yet.", "cost_factor": 0},
+		"major": {"name": "Major Belov, formerly of the Committee", "opens": "A file on your desk goes missing. He does not say how.", "declines": "He expects an envelope first.", "cost_factor": 40000}
+	}
+}
