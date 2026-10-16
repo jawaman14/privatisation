@@ -68,3 +68,19 @@ func test_save_load_mid_auction_gives_the_same_result() -> void:
 	check_eq(h.to_dict()["registry"], g.to_dict()["registry"], "same owners after the lot resolves")
 	check_eq(h.ledger.rub, g.ledger.rub, "same cash")
 	check_eq(h.vouchers.player_vouchers, g.vouchers.player_vouchers, "same vouchers")
+
+
+func test_the_bot_draws_some_state_attention() -> void:
+	# A bold bot bribes the property fund at every auction it can afford, so the prosecutors notice it.
+	var noticed := 0
+	for s in 20:
+		var g := RuGame.new_game(500 + s)
+		_games.append(g)
+		var peak := 0.0
+		while not g.is_over():
+			RuBot.act(g, true)
+			peak = maxf(peak, g.heat.prosecutor)
+			g.end_month()
+		if peak > 5.0:
+			noticed += 1
+	check(noticed >= 5, "the state looked at the bot in %d of 20 games" % noticed)

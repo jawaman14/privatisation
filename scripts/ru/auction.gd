@@ -80,6 +80,14 @@ func _refund_all(lot: Dictionary) -> void:
 	lot["cash_in"] = 0
 
 
+## What it takes to be sure (95%) of buying an official: 1% of the stake's real value, at today's prices.
+func bribe_cost(id: String) -> int:
+	if not _lots.has(id):
+		return 0
+	var e: Enterprise = registry.by_id(id)
+	return int(float(e.real_value_rub) * 0.01 * float(_lots[id]["bp"]) / 10000.0 * ledger.price_level())
+
+
 ## Pay an official to knock the strongest rival out of this lot. Success depends on the size of the bribe against
 ## the stake's worth; either way the prosecutors take notice.
 func bribe(id: String, _official: String, rub: int) -> Dictionary:
@@ -87,8 +95,7 @@ func bribe(id: String, _official: String, rub: int) -> Dictionary:
 		return {"ok": false, "risk": heat.prosecutor}
 	var lot: Dictionary = _lots[id]
 	var e: Enterprise = registry.by_id(id)
-	var effective: float = float(rub) / ledger.price_level()
-	var p: float = clampf(effective / (0.01 * float(e.real_value_rub)), 0.1, 0.95)
+	var p: float = clampf(float(rub) / float(maxi(1, bribe_cost(id))), 0.1, 0.95)
 	var ok: bool = sess.rng(2).random() < p
 	if ok:
 		var strongest: Variant = null

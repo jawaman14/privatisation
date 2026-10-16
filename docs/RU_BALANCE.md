@@ -21,5 +21,11 @@ Other levers set by hand, not yet swept: rival bid multiples of the reserve (gre
 cautious 1.0-1.2), voucher price fraction by year (0.35 / 0.55 / 0.9 of face), trading gap anchors (8x to 1.3x over 36 months),
 tax heat 0.5 per owned firm per month, brigade visit chance 12% per unroofed firm per month.
 
-Known gaps: no death or prison outcome yet, so "survival" is not measured; the bot never raises heat, so raids are rare
-(0.02 a game) and the state is under-tested by this policy.
+## 2. Bold bot and stake-based bribes (2026-10-16)
+
+Bribe cost is now 1% of the *stake's* real value at today's prices (`AuctionHouse.bribe_cost`), not of the whole firm.
+`RuBot` has a `bold` mode (`--bold`) that bribes the property fund at every auction it can afford, to exercise the state.
+200 seeds each: lazy: stake_rate 36%, raids/game 0.02; bold: stake_rate 28%, raids/game 0.44.
+The reserve factor stays at 2.4 (a re-sweep with the bolder rule put 2.4 at 35%, 2.8 at 7%).
+
+Known gaps: no death or prison outcome yet, so "survival" is not measured.

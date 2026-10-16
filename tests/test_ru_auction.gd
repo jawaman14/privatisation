@@ -126,3 +126,16 @@ func test_an_out_rival_never_bids() -> void:
 	m.v.buy(20)
 	m.a.place_player_bid(LOT, 20, 0)
 	check_eq(m.a.resolve(LOT).get("winner"), Ru.PLAYER, "the arrested rival is skipped")
+
+
+func test_bribe_cost_scales_with_the_stake_and_the_price_level() -> void:
+	var m := _make([])
+	var base: int = m.a.bribe_cost(LOT)
+	check(base > 0, "an official is not free")
+	var e: Enterprise = m.r.by_id(LOT)
+	check_eq(base, int(float(e.real_value_rub) * 0.01 * float(BP) / 10000.0), "1% of the stake's real value at December 1991 prices")
+	for i in 12:
+		m.s.advance_month()
+		m.l.apply_month()
+	check(m.a.bribe_cost(LOT) > 20 * base, "and 26x dearer after a year of 1992")
+	check_eq(m.a.bribe_cost("nope"), 0, "unknown lot costs nothing")

@@ -99,3 +99,22 @@ func test_game_over_is_announced() -> void:
 	check(d.header_text().contains("Final score"), "the end of 1993 shows the score: %s" % d.header_text())
 	d.end_month_pressed()
 	check_eq(_game.sess.month_index, 24, "and the clock stops")
+
+
+func test_rival_names_are_capitalised_in_the_log() -> void:
+	var d := _make()
+	_game.sess.bus.emit("auction_lost", 0.0, "", ["runner"], {"id": "volzhsky_dairy", "winner": "dyachenko", "price": 5})
+	check("\n".join(d.log_lines()).contains("Dyachenko"), "the winner is a person, not an id")
+
+
+func test_binding_twice_does_not_duplicate_the_screen() -> void:
+	var d := _make()
+	var kids: int = d.get_child_count()
+	d.bind(_game)
+	check_eq(d.get_child_count(), kids, "one screen, however often it is bound")
+	_game.sess.bus.emit("raid", 0.0, "", ["runner"], {"seized_rub": 1, "lost_enterprise": ""})
+	var raids := 0
+	for line in d.log_lines():
+		if str(line).begins_with("Raid!"):
+			raids += 1
+	check_eq(raids, 1, "and an event is logged once, not once per bind")

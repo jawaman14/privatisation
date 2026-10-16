@@ -23,6 +23,7 @@ var _list: ItemList
 var _end_button: Button
 var _good_picker: OptionButton
 var _ids: Array[String] = []
+var _subscribed_to: EventBus = null
 
 
 func _ready() -> void:
@@ -38,7 +39,12 @@ func _ready() -> void:
 func bind(g: RuGame) -> void:
 	game = g
 	_contacts = (Ru.load_json("res://data/ru/contacts.json") as Dictionary).get("contacts", {})
-	game.sess.bus.subscribe(ALL_EVENTS, _on_event)
+	if _subscribed_to != game.sess.bus:  # once per game: a second bind must not log every event twice
+		game.sess.bus.subscribe(ALL_EVENTS, _on_event)
+		_subscribed_to = game.sess.bus
+	for c in get_children():
+		remove_child(c)
+		c.free()
 	_build()
 	refresh()
 
@@ -135,8 +141,7 @@ func do_bribe_official() -> void:
 	if e == null or _open_lot(_selected).is_empty():
 		say("There is no auction to rig.")
 	else:
-		var rub: int = int(float(e.real_value_rub) * 0.01 * game.ledger.price_level())
-		var res: Dictionary = game.auctions.bribe(_selected, "property_fund", rub)
+		var res: Dictionary = game.auctions.bribe(_selected, "property_fund", game.auctions.bribe_cost(_selected))
 		say("The property fund official takes the envelope. %s" % ("A rival is quietly struck off." if res["ok"] else "It goes nowhere, and people noticed."))
 	refresh()
 
@@ -236,7 +241,7 @@ func _describe(ev) -> String:
 		"auction_won":
 			return "You won %s (%d%% of the shares) for %s roubles." % [_name(str(d["id"])), int(d["bp"]) / 100, _money(int(d["price"]))]
 		"auction_lost":
-			return "%s went to %s." % [_name(str(d["id"])), str(d["winner"])]
+			return "%s went to %s." % [_name(str(d["id"])), str(d["winner"]).capitalize()]
 		"buyout_done":
 			return "The insiders of %s have bought their 51%%." % _name(str(d["id"]))
 		"brotherhood_demand":

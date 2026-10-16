@@ -9,16 +9,18 @@ const VOUCHER_SHARE := 0.5  ## of cash spent on vouchers each month once they ex
 const MAX_BID_MULTIPLE := 3  ## bid up to this many times the reserve
 
 
-static func play(g: RuGame) -> void:
+## `bold` bots also bribe the property fund whenever they can afford a quarter of the sure price, whether or not
+## they could bid: they exist to put pressure on the state in tests and balance runs.
+static func play(g: RuGame, bold := false) -> void:
 	while not g.is_over():
-		act(g)
+		act(g, bold)
 		g.end_month()
 
 
-static func act(g: RuGame) -> void:
+static func act(g: RuGame, bold := false) -> void:
 	_trade(g)
 	if g.vouchers.issued:
-		_vouchers_and_auctions(g)
+		_vouchers_and_auctions(g, bold)
 	_protect(g)
 	_buyout(g)
 
@@ -45,7 +47,7 @@ static func _trade(g: RuGame) -> void:
 		g.trading.buy_state(best, qty)
 
 
-static func _vouchers_and_auctions(g: RuGame) -> void:
+static func _vouchers_and_auctions(g: RuGame, bold: bool) -> void:
 	var price: int = g.vouchers.price_rub()
 	var spend: int = int(float(g.ledger.rub) * VOUCHER_SHARE)
 	var n: int = spend / maxi(1, price)
@@ -53,12 +55,25 @@ static func _vouchers_and_auctions(g: RuGame) -> void:
 		g.vouchers.buy(n)
 	var lots: Array = g.auctions.open_this_month()
 	lots.sort_custom(func(a, b): return int(a["reserve"]) < int(b["reserve"]))
+	_rig_one(g, lots, bold)
 	for lot in lots:
 		var reserve: int = int(lot["reserve"])
 		var have: int = g.vouchers.player_vouchers
 		if have >= reserve:
 			g.auctions.place_player_bid(str(lot["id"]), mini(have, reserve * MAX_BID_MULTIPLE), 0)
 			return  # one lot at a time: the vouchers are committed
+
+
+## When it holds enough vouchers to bid for the cheapest lot and still has the cash, pay the property fund a quarter
+## of the sure price (about a one in four chance) to strike a rival off it. A failed bribe draws the prosecutors.
+static func _rig_one(g: RuGame, lots: Array, bold: bool) -> void:
+	if lots.is_empty():
+		return
+	var lot: Dictionary = lots[0]
+	var id: String = str(lot["id"])
+	var cost: int = g.auctions.bribe_cost(id) / 4
+	if (bold or g.vouchers.player_vouchers >= int(lot["reserve"])) and cost > 0 and g.ledger.rub > 12 * cost / 10:
+		g.auctions.bribe(id, "property_fund", cost)
 
 
 static func _protect(g: RuGame) -> void:

@@ -5,7 +5,7 @@ extends RefCounted
 
 
 ## Returns {seeds, stake_rate, median_firms, median_score, median_worth, median_prosecutor_heat, raids_per_game}.
-static func run(seeds: int, first_seed := 1000) -> Dictionary:
+static func run(seeds: int, first_seed := 1000, bold := false) -> Dictionary:
 	var firms: Array = []
 	var scores: Array = []
 	var worths: Array = []
@@ -15,7 +15,7 @@ static func run(seeds: int, first_seed := 1000) -> Dictionary:
 		var g := RuGame.new_game(first_seed + i)
 		var raid_count: Array = [0]
 		g.sess.bus.subscribe("raid", func(_ev): raid_count[0] += 1)
-		RuBot.play(g)
+		RuBot.play(g, bold)
 		var owned: int = g.registry.owned_by(Ru.PLAYER).size()
 		if owned > 0:
 			stakes += 1
