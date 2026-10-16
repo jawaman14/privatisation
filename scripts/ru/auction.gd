@@ -30,6 +30,11 @@ func schedule(enterprise_id: String, month_index: int, bp_offered: int, reserve_
 		"reserve": reserve_vouchers, "resolved": false, "vouchers_in": 0, "cash_in": 0, "disq": []}
 
 
+## True while the firm has a lot that is not yet settled (this month's or a relisted one).
+func is_listed(enterprise_id: String) -> bool:
+	return _lots.has(enterprise_id) and not bool(_lots[enterprise_id]["resolved"])
+
+
 func open_this_month() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for id in _lots:
