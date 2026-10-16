@@ -11,6 +11,7 @@ static var ENABLED := true
 const START_YEAR := 1991
 const START_MONTH := 12
 const STREAM_BASE := 1001
+const PLAYER := "player"  ## the owner id of the player's holdings
 
 
 ## Parse a data file under res://data/ru/. Returns {} (and prints an error) if it is missing or malformed.
