@@ -1,0 +1,5 @@
+{
+	"_note": "How strong the state's enforcement is, by year (1.0 = full strength). The 1990s organs are weak and corruptible; they harden as the decade goes on.",
+	"enforcement_by_year": {"1991": 0.10, "1992": 0.15, "1993": 0.30, "1994": 0.40},
+	"monthly_decay": 0.05
+}

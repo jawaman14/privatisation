@@ -140,6 +140,9 @@ jobs:
           build/Skyrunner.x86_64 --headless -- --unlocks open --watch --new --smoke 1800 2>&1 | tee run.log
           grep -q "SMOKE OK" run.log
           ! grep -q "SCRIPT ERROR" run.log
+          build/Skyrunner.x86_64 --headless -- --game ru --smoke 30 2>&1 | tee ru.log
+          grep -q "SMOKE OK RU" ru.log
+          ! grep -q "SCRIPT ERROR" ru.log
       - name: Rendered frame (story mode, llvmpipe)
         run: |
           xvfb-run -a -s "-screen 0 1280x720x24" build/Skyrunner.x86_64 --rendering-driver opengl3 --audio-driver Dummy \

@@ -1,0 +1,18 @@
+{
+	"_note": "When each stake goes under the hammer. on: YYYY-MM; bp: basis points offered. The reserve is book value x bp x reserve_factor in voucher face values.",
+	"reserve_factor": 2.4,
+	"lots": [
+		{"on": "1992-11", "id": "volzhsky_dairy", "bp": 2500},
+		{"on": "1992-11", "id": "kuban_sugar", "bp": 2500},
+		{"on": "1992-12", "id": "tula_samovar", "bp": 3000},
+		{"on": "1993-01", "id": "nevsky_shop", "bp": 4000},
+		{"on": "1993-02", "id": "baltiysk_fish", "bp": 2500},
+		{"on": "1993-03", "id": "sibirsk_grain", "bp": 3000},
+		{"on": "1993-04", "id": "ussuri_timber", "bp": 2500},
+		{"on": "1993-05", "id": "krasny_tractor", "bp": 2500},
+		{"on": "1993-06", "id": "ural_valves", "bp": 2500},
+		{"on": "1993-08", "id": "gum_arcade", "bp": 2000},
+		{"on": "1993-09", "id": "moskva_vodka", "bp": 2000},
+		{"on": "1993-11", "id": "novoport", "bp": 1500}
+	]
+}
