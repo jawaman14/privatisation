@@ -1,0 +1,6 @@
+{
+	"_note": "Approximate. Face value 10,000 roubles; the market price is a fraction of it that drifts by year, with monthly noise.",
+	"player_allotment": 3,
+	"price_fraction_by_year": {"1992": 0.35, "1993": 0.55, "1994": 0.9},
+	"monthly_noise": 0.08
+}
