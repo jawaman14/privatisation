@@ -53,6 +53,16 @@ func rub_to_usd(amount: int) -> int:
 	return int(float(amount) / rub_per_usd())
 
 
+func to_dict() -> Dictionary:
+	return {"rub": rub, "usd": usd, "index": _index}
+
+
+func load_dict(d: Dictionary) -> void:
+	rub = int(d.get("rub", 0))
+	usd = int(d.get("usd", 0))
+	_index = float(d.get("index", 1.0))
+
+
 func can_afford(rub_amount: int) -> bool:
 	return rub_amount >= 0 and rub >= rub_amount
 

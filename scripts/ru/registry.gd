@@ -48,6 +48,14 @@ func available() -> Array[Enterprise]:
 	return out
 
 
+## Replace every enterprise with the saved ones (the inverse of to_dict).
+func load_dict(d: Dictionary) -> void:
+	_by_id.clear()
+	_order.clear()
+	for row in d.get("enterprises", []):
+		add(Enterprise.from_dict(row))
+
+
 func to_dict() -> Dictionary:
 	var rows := []
 	for e in all():
