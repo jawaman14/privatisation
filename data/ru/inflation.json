@@ -1,0 +1,6 @@
+{
+	"_note": "Approximate annual consumer-price inflation, percent. Monthly rate is the 12th root. Years past the table repeat the last entry.",
+	"annual_percent": {"1992": 2500, "1993": 840, "1994": 220, "1995": 130},
+	"usd_start_rub": 125,
+	"usd_pass_through": 0.5
+}

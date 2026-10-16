@@ -11,3 +11,13 @@ static var ENABLED := true
 const START_YEAR := 1991
 const START_MONTH := 12
 const STREAM_BASE := 1001
+
+
+## Parse a data file under res://data/ru/. Returns {} (and prints an error) if it is missing or malformed.
+static func load_json(path: String) -> Variant:
+	var text: String = FileAccess.get_file_as_string(path)
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null:
+		push_error("Ru.load_json: cannot read %s" % path)
+		return {}
+	return parsed
