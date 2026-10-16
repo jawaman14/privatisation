@@ -6,6 +6,7 @@ extends RefCounted
 var seed: int = 1
 var bus: EventBus
 var month_index: int = 0  ## 0 = December 1991
+var ledger: Ledger = null  ## set when the game is wired up (see Task 10); systems that need prices read it
 
 var _streams: Dictionary = {}  ## stream number -> PyRandom
 
